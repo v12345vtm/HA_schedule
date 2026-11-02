@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Climate Schedule",
+        "description": "Choose the climates you want to plan with Climate Schedule.",
+        "data": {
+          "climates": "Climates"
+        }
+      }
+    },
+    "error": {
+      "no_climates": "Choose at least one climate."
+    },
+    "abort": {
+      "already_configured": "Climate Schedule is already set up. Change the climates via Options."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Climates",
+        "description": "Choose the climates Climate Schedule manages.",
+        "data": {
+          "climates": "Climates"
+        }
+      }
+    },
+    "error": {
+      "no_climates": "Choose at least one climate."
+    }
+  }
+}

@@ -1,6 +1,9 @@
 # Bestand: custom_components/climate_schedule/__init__.py
-# Versie: 0.0.1
-"""Climate Schedule: presets per gebruiker, per weekdag gekoppeld, gecombineerd per climate."""
+# Versie: 0.0.2
+"""Climate Schedule: presets per gebruiker, per weekdag gekoppeld, gecombineerd per climate.
+
+De beheerde climates kies je in de UI (config flow / opties), niet in configuration.yaml.
+"""
 from __future__ import annotations
 
 import copy
@@ -10,35 +13,22 @@ from pathlib import Path
 
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import resolver as r
+from .const import CONF_CLIMATES, DOMAIN, SIGNAL_UPDATE, STORAGE_VERSION
 
 _LOGGER = logging.getLogger(__name__)
-
-DOMAIN = "climate_schedule"
-VERSION = "0.0.1"
-CONF_CLIMATES = "climates"
-STORAGE_VERSION = 2
-SIGNAL_UPDATE = f"{DOMAIN}_updated"
+PLATFORMS = [Platform.SENSOR]
 SEED_FILE = Path(__file__).parent / "seed.json"
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {vol.Required(CONF_CLIMATES): vol.All(cv.ensure_list, [cv.entity_id])}
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 TIME = vol.All(cv.string, r.valid_time)
 TEMP = vol.All(vol.Coerce(float), vol.Range(min=5, max=35))
@@ -46,7 +36,7 @@ DAY = vol.In(r.WEEKDAYS)
 
 
 class ScheduleManager:
-    """Houdt het datamodel vast en stuurt de climates aan."""
+    """Houdt het datamodel vast en stuurt de geselecteerde climates aan."""
 
     def __init__(self, hass: HomeAssistant, store: Store, data: dict, climates: list[str]):
         self.hass = hass
@@ -56,7 +46,7 @@ class ScheduleManager:
         self._last_applied: dict[str, float] = {}
 
     async def async_mutate(self, fn, **kwargs) -> None:
-        """Voer een mutatie uit op een kopie, valideer, en pas dan pas op."""
+        """Voer een mutatie uit op een kopie, valideer, en pas dan pas toe."""
         candidate = copy.deepcopy(self.data)
         try:
             fn(candidate, **kwargs)
@@ -85,30 +75,26 @@ class ScheduleManager:
         temp, _users, _source = r.effective(self.data, climate, weekday, minute)
         if temp is None:
             return
-
-        state = self.hass.states.get(climate)
-        if state is None:
-            _LOGGER.warning("Climate %s niet gevonden", climate)
+        if self.hass.states.get(climate) is None:
+            _LOGGER.warning("Climate %s bestaat niet (meer)", climate)
             return
-
-        lo = state.attributes.get("min_temp", temp)
-        hi = state.attributes.get("max_temp", temp)
-        if not lo <= temp <= hi:
-            _LOGGER.warning("%s: %s°C ligt buiten %s–%s, wordt begrensd", climate, temp, lo, hi)
-            temp = min(max(temp, lo), hi)
-
-        # Alleen sturen bij een wijziging van het setpoint, zodat een handmatige
-        # aanpassing op de thermostaat blijft staan tot het volgende slotmoment.
+        # Geen begrenzing in de code: de climate zelf bepaalt of de waarde mag.
+        # Alleen sturen bij een wijziging, zodat een handmatige aanpassing blijft staan.
         if not force and self._last_applied.get(climate) == temp:
             return
+        try:
+            await self.hass.services.async_call(
+                "climate",
+                "set_temperature",
+                {"entity_id": climate, "temperature": temp},
+                blocking=True,
+            )
+        except HomeAssistantError as err:
+            _LOGGER.error(
+                "%s: %s°C niet ingesteld, de climate weigerde de waarde: %s", climate, temp, err
+            )
+            return
         self._last_applied[climate] = temp
-
-        await self.hass.services.async_call(
-            "climate",
-            "set_temperature",
-            {"entity_id": climate, "temperature": temp},
-            blocking=True,
-        )
 
 
 def _load_seed() -> dict:
@@ -119,13 +105,18 @@ def _load_seed() -> dict:
     return {"schema_version": STORAGE_VERSION, "users": {}, "defaults": {}}
 
 
-def _make_handler(manager: ScheduleManager, fn):
+def _make_handler(hass: HomeAssistant, fn):
     async def handler(call: ServiceCall) -> None:
+        manager: ScheduleManager | None = hass.data.get(DOMAIN)
+        if manager is None:
+            raise HomeAssistantError(
+                "Climate Schedule is niet geladen. Voeg de integratie toe via Instellingen."
+            )
         await manager.async_mutate(fn, **call.data)
     return handler
 
 
-def _register_services(hass: HomeAssistant, m: ScheduleManager) -> None:
+def _register_services(hass: HomeAssistant) -> None:
     services = {
         "add_user": (r.add_user, vol.Schema({
             vol.Required("name"): cv.string,
@@ -163,13 +154,20 @@ def _register_services(hass: HomeAssistant, m: ScheduleManager) -> None:
         })),
     }
     for name, (fn, schema) in services.items():
-        hass.services.async_register(DOMAIN, name, _make_handler(m, fn), schema=schema)
+        hass.services.async_register(DOMAIN, name, _make_handler(hass, fn), schema=schema)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    conf = config[DOMAIN]
+    """Services eenmalig registreren. Er is geen YAML-configuratie meer."""
+    _register_services(hass)
+    return True
 
-    # Opslag: .storage/climate_schedule (JSON, door HA beheerd)
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = Store(hass, STORAGE_VERSION, DOMAIN)
     data = await store.async_load()
     if data is None:
@@ -182,13 +180,20 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     for err in r.validate(data):
         _LOGGER.warning("Climate Schedule datamodel: %s", err)
 
-    manager = ScheduleManager(hass, store, data, conf[CONF_CLIMATES])
+    climates = entry.options.get(CONF_CLIMATES, [])
+    manager = ScheduleManager(hass, store, data, climates)
     hass.data[DOMAIN] = manager
 
-    _register_services(hass, manager)
-    async_track_time_change(hass, manager.async_tick, second=0)
-    await async_load_platform(
-        hass, Platform.SENSOR, DOMAIN, {"climates": conf[CONF_CLIMATES]}, config
-    )
+    entry.async_on_unload(async_track_time_change(hass, manager.async_tick, second=0))
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await manager.async_apply_all(force=True)
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        hass.data.pop(DOMAIN, None)
+    return unloaded

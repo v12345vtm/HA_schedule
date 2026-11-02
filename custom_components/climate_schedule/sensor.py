@@ -1,22 +1,26 @@
 # Bestand: custom_components/climate_schedule/sensor.py
-# Versie: 0.0.1
-"""Sommatie-sensor per climate: effectief setpoint nu, plus het dagverloop per weekdag."""
+# Versie: 0.0.2
+"""Sommatie-sensor per geselecteerde climate: effectief setpoint nu, plus het dagverloop per weekdag."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from . import DOMAIN, SIGNAL_UPDATE
 from . import resolver as r
+from .const import CONF_CLIMATES, DOMAIN, SIGNAL_UPDATE
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     manager = hass.data[DOMAIN]
-    async_add_entities(
-        [SommatieSensor(manager, climate) for climate in discovery_info["climates"]]
-    )
+    climates = entry.options.get(CONF_CLIMATES, [])
+    async_add_entities([SommatieSensor(manager, climate) for climate in climates])
 
 
 class SommatieSensor(SensorEntity):

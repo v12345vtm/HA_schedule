@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Climate Schedule",
+        "description": "Kies de climates die je via Climate Schedule wilt plannen.",
+        "data": {
+          "climates": "Climates"
+        }
+      }
+    },
+    "error": {
+      "no_climates": "Kies minstens één climate."
+    },
+    "abort": {
+      "already_configured": "Climate Schedule is al ingesteld. Pas de climates aan via Opties."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Climates",
+        "description": "Kies de climates die Climate Schedule beheert.",
+        "data": {
+          "climates": "Climates"
+        }
+      }
+    },
+    "error": {
+      "no_climates": "Kies minstens één climate."
+    }
+  }
+}
