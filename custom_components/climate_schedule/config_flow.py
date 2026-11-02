@@ -1,5 +1,5 @@
 # Bestand: custom_components/climate_schedule/config_flow.py
-# Versie: 0.0.2
+# Versie: 0.0.3
 """Config flow en options flow: met een climate picker kies je welke climates beheerd worden."""
 from __future__ import annotations
 

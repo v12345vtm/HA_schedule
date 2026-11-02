@@ -1,5 +1,5 @@
 # Bestand: custom_components/climate_schedule/sensor.py
-# Versie: 0.0.2
+# Versie: 0.0.3
 """Sommatie-sensor per geselecteerde climate: effectief setpoint nu, plus het dagverloop per weekdag."""
 from __future__ import annotations
 
@@ -63,6 +63,7 @@ class SommatieSensor(SensorEntity):
             "bron": source,
             "gebruikers": users,
             "presets_vandaag": r.today_presets(self._m.data, idx),
+            "testmodus": self._m.test_mode,
             "vandaag": week[r.WEEKDAYS[idx]],
             "week": week,
         }

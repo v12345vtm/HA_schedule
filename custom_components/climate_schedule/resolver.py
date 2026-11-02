@@ -1,5 +1,5 @@
 # Bestand: custom_components/climate_schedule/resolver.py
-# Versie: 0.0.1
+# Versie: 0.0.3
 """Pure logica zonder Home Assistant imports, zodat de tester dit los kan draaien.
 
 Datamodel (zie readme.md):

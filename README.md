@@ -2,7 +2,7 @@
 
 Custom component die per gebruiker presets met tijdsloten beheert, per weekdag een preset koppelt, en de resultaten per climate samenvoegt. Bij overlap wint de hoogste temperatuur.
 
-Versie: **0.0.2**. Zie `changelog.md` voor wat er per versie veranderde.
+Versie: **0.0.3**. Zie `changelog.md` voor wat er per versie veranderde.
 
 ## Repo-structuur
 
@@ -16,6 +16,7 @@ HA_schedule/
 │       ├── manifest.json     # versie in het veld "version"
 │       ├── resolver.py       # pure logica: presets, conflicten, validatie
 │       ├── sensor.py         # sommatie-sensor per gekozen climate
+│       ├── switch.py         # hoofdschakelaar testmodus
 │       ├── seed.json         # startdata, alleen als er nog geen opslag is
 │       ├── strings.json      # bronteksten van de UI
 │       └── translations/
@@ -177,6 +178,24 @@ logger:
 - Controleer `sensor.sommatie_keuken` en het attribuut `vandaag`.
 - Datamodelfouten verschijnen in het log met `Climate Schedule datamodel:`.
 - Een geweigerde temperatuur verschijnt als fout met `niet ingesteld, de climate weigerde de waarde`.
+
+## Testmodus (hoofdschakelaar)
+
+De entity `switch.climate_schedule_testmodus` is de hoofdschakelaar.
+
+- **Aan (testmodus):** alles wordt berekend, de sensoren werken normaal, maar er wordt **niets** naar de climates gestuurd. Elke wijziging van het gewenste setpoint wordt gelogd als `TESTMODUS ... zou op X°C gaan`. De thermostaat blijft op zijn laatste stand staan.
+- **Uit:** de integratie stuurt weer en zet direct de huidige gewenste stand.
+
+Bij een nieuwe installatie staat de testmodus **aan**. De stand wordt bewaard, ook na een herstart. In de sensor staat het attribuut `testmodus`.
+
+Om de testlogs te zien, zet in `configuration.yaml`:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.climate_schedule: info
+```
 
 ## Bewust nog niet in deze versie
 

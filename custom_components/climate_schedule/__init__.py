@@ -1,8 +1,9 @@
 # Bestand: custom_components/climate_schedule/__init__.py
-# Versie: 0.0.2
+# Versie: 0.0.3
 """Climate Schedule: presets per gebruiker, per weekdag gekoppeld, gecombineerd per climate.
 
 De beheerde climates kies je in de UI (config flow / opties), niet in configuration.yaml.
+Met de hoofdschakelaar testmodus wordt alles berekend en gelogd, maar niets naar de climates gestuurd.
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ from . import resolver as r
 from .const import CONF_CLIMATES, DOMAIN, SIGNAL_UPDATE, STORAGE_VERSION
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH]
 SEED_FILE = Path(__file__).parent / "seed.json"
 
 TIME = vol.All(cv.string, r.valid_time)
@@ -44,6 +45,22 @@ class ScheduleManager:
         self.data = data
         self.climates = climates
         self._last_applied: dict[str, float] = {}
+        self._last_planned: dict[str, float] = {}
+
+    @property
+    def test_mode(self) -> bool:
+        return bool(self.data.get("test_mode", True))
+
+    async def async_set_test_mode(self, enabled: bool) -> None:
+        """Zet de hoofdschakelaar. Uit zetten stuurt direct de huidige stand naar de climates."""
+        if self.test_mode == enabled:
+            return
+        self.data["test_mode"] = enabled
+        self._last_planned.clear()
+        await self.store.async_save(self.data)
+        _LOGGER.warning("Climate Schedule testmodus %s", "AAN" if enabled else "UIT")
+        async_dispatcher_send(self.hass, SIGNAL_UPDATE)
+        await self.async_apply_all(force=True)
 
     async def async_mutate(self, fn, **kwargs) -> None:
         """Voer een mutatie uit op een kopie, valideer, en pas dan pas toe."""
@@ -78,6 +95,14 @@ class ScheduleManager:
         if self.hass.states.get(climate) is None:
             _LOGGER.warning("Climate %s bestaat niet (meer)", climate)
             return
+
+        # Testmodus: niets sturen, alleen loggen wat er zou gebeuren (bij elke wijziging).
+        if self.test_mode:
+            if self._last_planned.get(climate) != temp:
+                _LOGGER.info("TESTMODUS %s: zou op %s°C gaan (er wordt niets gestuurd)", climate, temp)
+                self._last_planned[climate] = temp
+            return
+
         # Geen begrenzing in de code: de climate zelf bepaalt of de waarde mag.
         # Alleen sturen bij een wijziging, zodat een handmatige aanpassing blijft staan.
         if not force and self._last_applied.get(climate) == temp:
@@ -176,6 +201,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("Climate Schedule: startdata uit seed.json geladen")
     data.setdefault("users", {})
     data.setdefault("defaults", {})
+    # Veilig als standaard: bij een nieuwe installatie staat de testmodus aan.
+    data.setdefault("test_mode", True)
 
     for err in r.validate(data):
         _LOGGER.warning("Climate Schedule datamodel: %s", err)

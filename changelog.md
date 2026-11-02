@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.3 - 2026-11-02
+
+- Hoofdschakelaar testmodus (`switch.climate_schedule_testmodus`). Aan: alles wordt berekend en gelogd, er wordt niets naar de climates gestuurd. Uit: de integratie stuurt weer en zet direct de huidige stand.
+- Testmodus staat standaard aan bij een nieuwe installatie, en de stand blijft bewaard na een herstart.
+- Sensoren hebben het attribuut `testmodus`.
+- Versienummer in alle bestanden. Python-bestanden, `seed.json`, `strings.json` en de vertalingen hebben een `_meta`- of header-versie. `manifest.json` heeft het veld `version`.
+- README bijgewerkt met de testmodus en het logniveau voor de testlogs.
+
 ## 0.0.1 - 2026-11-02
 
 Eerste werkbare versie. Nog niet getest in een live Home Assistant-installatie.

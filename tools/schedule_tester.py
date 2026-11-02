@@ -1,5 +1,5 @@
 # Bestand: tools/schedule_tester.py
-# Versie: 0.0.1
+# Versie: 0.0.3
 """Tester voor het climate_schedule datamodel. Draait zonder Home Assistant.
 
 Gebruik (vanuit de repo-root):

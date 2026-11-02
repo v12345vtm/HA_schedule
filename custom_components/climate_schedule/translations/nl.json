@@ -1,4 +1,8 @@
 {
+  "_meta": {
+    "bestand": "nl.json",
+    "versie": "0.0.3"
+  },
   "config": {
     "step": {
       "user": {

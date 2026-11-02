@@ -1,7 +1,7 @@
 {
   "_meta": {
     "bestand": "seed.json",
-    "versie": "0.0.1",
+    "versie": "0.0.3",
     "doel": "Startdata. Wordt alleen gebruikt als er nog geen opgeslagen data is in .storage/climate_schedule"
   },
   "schema_version": 2,
@@ -19,8 +19,24 @@
   "users": {
     "eric": {
       "presets": {
-        "voormiddag": {"climate.keuken": [{"start": "08:00", "end": "12:00", "temp": 25}]},
-        "namiddag": {"climate.keuken": [{"start": "14:00", "end": "16:00", "temp": 25}]}
+        "voormiddag": {
+          "climate.keuken": [
+            {
+              "start": "08:00",
+              "end": "12:00",
+              "temp": 25
+            }
+          ]
+        },
+        "namiddag": {
+          "climate.keuken": [
+            {
+              "start": "14:00",
+              "end": "16:00",
+              "temp": 25
+            }
+          ]
+        }
       },
       "schedule": {
         "monday": "voormiddag",
@@ -34,7 +50,15 @@
     },
     "gudrun": {
       "presets": {
-        "ochtend": {"climate.keuken": [{"start": "09:00", "end": "11:00", "temp": 26}]}
+        "ochtend": {
+          "climate.keuken": [
+            {
+              "start": "09:00",
+              "end": "11:00",
+              "temp": 26
+            }
+          ]
+        }
       },
       "schedule": {
         "monday": "ochtend",
